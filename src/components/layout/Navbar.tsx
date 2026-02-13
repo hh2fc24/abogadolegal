@@ -32,6 +32,7 @@ const Navbar = () => {
 
     const navLinks = [
         { name: "Inicio", href: "/" },
+        { name: "Tu Quiebra", href: "/tu-quiebra" },
         { name: "Sobre Nosotros", href: "/sobre-nosotros" },
         { name: "Servicios", href: "/servicios" },
         { name: "Contacto", href: "/contacto" },

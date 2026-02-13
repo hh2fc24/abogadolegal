@@ -15,6 +15,14 @@ const nextConfig: NextConfig = {
     // Permite que la aplicación compile exitosamente incluso si tiene errores de tipo.
     ignoreBuildErrors: true,
   },
+  images: {
+    remotePatterns: [
+      {
+        protocol: "https",
+        hostname: "images.unsplash.com",
+      },
+    ],
+  },
 };
 
 export default nextConfig;
