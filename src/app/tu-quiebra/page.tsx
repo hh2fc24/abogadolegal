@@ -1,5 +1,6 @@
 import Hero from "@/components/tu-quiebra/Hero";
 import Services from "@/components/tu-quiebra/Services";
+import ProcessFlow from "@/components/tu-quiebra/ProcessFlow"; // Added import
 import Benefits from "@/components/tu-quiebra/Benefits";
 import About from "@/components/tu-quiebra/About";
 import FAQ from "@/components/tu-quiebra/FAQ";
@@ -15,6 +16,7 @@ export default function TuQuiebraPage() {
         <main className="min-h-screen bg-white">
             <Hero />
             <Services />
+            <ProcessFlow />
             <Benefits />
             <About />
             <FAQ />
