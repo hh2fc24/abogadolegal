@@ -62,7 +62,7 @@ const ProcessFlow = () => {
                 </div>
 
                 {/* Desktop Flow (Snake/Wave Style simplified to horizontal for responsiveness) */}
-                <div className="relative hidden lg:block pb-24">
+                <div className="relative hidden lg:block pb-24 mt-32">
                     {/* Connecting Line */}
                     <div className="absolute top-1/2 left-0 w-full h-1 bg-gray-200 -translate-y-1/2 z-0" />
 
@@ -87,8 +87,8 @@ const ProcessFlow = () => {
                                 {/* Connector to line */}
                                 {/* Content Box */}
                                 <div className={`absolute w-64 text-center ${i % 2 === 0
-                                        ? "top-28 pt-4" // Bottom aligned
-                                        : "bottom-28 pb-4"   // Top aligned
+                                    ? "top-28 pt-4" // Bottom aligned
+                                    : "bottom-28 pb-4"   // Top aligned
                                     }`}>
                                     {/* Icon Bubble */}
                                     {/* 
