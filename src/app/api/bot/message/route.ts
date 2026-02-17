@@ -529,11 +529,11 @@ export async function POST(req: Request) {
     const historyProvided = Array.isArray(history);
     let currentHistory: Msg[] = historyProvided
       ? (history as any[])
-          .map((m: any) => ({
-            role: m?.role,
-            content: String(m?.content ?? ''),
-          }))
-          .filter((m: any) => m && (m.role === 'user' || m.role === 'assistant' || m.role === 'system'))
+        .map((m: any) => ({
+          role: m?.role,
+          content: String(m?.content ?? ''),
+        }))
+        .filter((m: any) => m && (m.role === 'user' || m.role === 'assistant' || m.role === 'system'))
       : [];
 
     let persistence: 'supabase' | 'none' = 'supabase';
@@ -757,14 +757,30 @@ export async function POST(req: Request) {
     // limpiar respuesta visible
     const cleanReply = reply.replace(/<LEAD>[\s\S]*?<\/LEAD>/, '').trim();
 
+    // Preparar datos del lead para que el frontend los envíe a Geimser
+    let leadData = null;
+    if (leadBlock) {
+      leadData = {
+        name: normText(leadBlock.name ?? baseSlots.name),
+        email: normEmail(leadBlock.email ?? baseSlots.email),
+        phone: normPhone(leadBlock.phone ?? baseSlots.phone),
+        message: buildMotivoRich(
+          normText(leadBlock.motivo ?? leadBlock.message ?? baseSlots.motivo),
+          {
+            acreedor: normText(leadBlock.acreedor ?? baseSlots.acreedor),
+            montoCLP: parseMontoToCLP(leadBlock.monto ?? null) ?? (baseSlots.monto ?? null),
+            region: normText(leadBlock.region) ?? null,
+            comuna: normText(leadBlock.comuna) ?? null,
+          }
+        ),
+      };
+    }
+
     return NextResponse.json({
       conversationId: conversation.id,
       reply: cleanReply,
-      leadId,
-      leadStatus,
+      leadData, // Send this to frontend
       persistence,
-      xelSync,
-      xelLeadId,
     });
 
   } catch (e) {

@@ -14,6 +14,12 @@ type BotResponse = {
   leadId?: string | null;
   leadStatus?: 'inserted' | 'deduped' | 'skipped' | 'disabled' | 'error';
   persistence?: 'supabase' | 'none';
+  leadData?: {
+    name: string;
+    email: string | null;
+    phone: string | null;
+    message: string | null;
+  } | null;
 };
 
 const KEY = 'dc_conversation_id';

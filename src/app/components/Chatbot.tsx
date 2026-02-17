@@ -134,20 +134,49 @@ export default function Chatbot() {
     setIsTyping(true);
 
     try {
-      const { reply, conversationId, leadId, leadStatus } = await sendBotMessage(text, {
+      const replyData = await sendBotMessage(text, {
         systemPrompt: SYSTEM_PROMPT,
         history: newHistory.map((m) => ({ role: m.role, content: m.content })),
       });
+      const { reply, conversationId } = replyData;
+
+      // Si viene leadData, lo enviamos a Geimser (server-to-server via /api/bot/lead)
+      if (replyData.leadData) {
+        // Opcional: Mostrar "Enviando registro..." si se desea feedback visual inmediato
+        // Por ahora lo hacemos transparente y solo avisamos si falla o confirmamos éxito.
+
+        try {
+          const ingestRes = await fetch('/api/bot/lead', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              ...replyData.leadData,
+              meta: {
+                page: window.location.pathname,
+                title: document.title,
+              }
+            }),
+          });
+
+          const ingestJson = await ingestRes.json();
+
+          if (!ingestRes.ok || !ingestJson.ok) {
+            console.error('Error enviando lead a Geimser:', ingestJson.error);
+            // Podríamos agregar un mensaje de error al chat si fuera crítico
+          } else {
+            console.log('✅ Lead enviado a Geimser correctamente');
+          }
+        } catch (err) {
+          console.error('Error de red al enviar lead a Geimser:', err);
+        }
+      }
 
       setIsTyping(false);
       setMsgs([...newHistory, { role: "assistant", content: reply || "" }]);
 
-      // Marcamos success solo si realmente insertamos un lead nuevo o dedupe válido
-      if ((leadStatus === "inserted" || leadStatus === "deduped") && conversationId) {
+      // Marcamos success si hubo leadData (asumimos que el intento de envío cuenta como "conversación útil")
+      if (replyData.leadData && conversationId) {
         await saveConversationForReview(conversationId, "success");
-        if (leadId) {
-          console.log("✅ Lead guardado:", leadId, "| status:", leadStatus);
-        }
       }
     } catch (e) {
       console.error("Error en el chat:", e);
@@ -230,8 +259,8 @@ export default function Chatbot() {
               >
                 <div
                   className={`max-w-[85%] whitespace-pre-wrap rounded-2xl px-4 py-3 text-sm shadow-sm ${m.role === "user"
-                      ? "bg-legal-navy text-white"
-                      : "bg-white text-gray-800 border border-gray-100"
+                    ? "bg-legal-navy text-white"
+                    : "bg-white text-gray-800 border border-gray-100"
                     }`}
                 >
                   {m.content}
