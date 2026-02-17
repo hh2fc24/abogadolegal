@@ -3,11 +3,36 @@ import { NextRequest, NextResponse } from 'next/server';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
+function resolveGeimserIngestUrl(): string {
+    const candidates = [
+        process.env.GEIMSER_INGEST_URL,
+        process.env.GEIMSER_API_URL, // legacy name
+    ].filter(Boolean) as string[];
+
+    const url = candidates.find((v) => {
+        try {
+            const u = new URL(v);
+            return u.protocol === 'http:' || u.protocol === 'https:';
+        } catch {
+            return false;
+        }
+    });
+
+    return url || 'https://www.geimser.cl/api/leads/ingest';
+}
+
+function toErrorDetails(err: unknown): { message: string; cause?: any } {
+    if (err instanceof Error) {
+        // Node/undici often sets err.cause with code/message
+        return { message: err.message, cause: (err as any).cause };
+    }
+    return { message: String(err) };
+}
+
 export async function POST(req: NextRequest) {
     try {
         const apiKey = process.env.GEIMSER_INGEST_API_KEY;
-        // Fallback URL if not set in env, helpful for testing or default config
-        const geimserUrl = process.env.GEIMSER_API_URL || 'https://api.geimser.com/api/leads/ingest';
+        const geimserUrl = resolveGeimserIngestUrl();
 
         if (!apiKey) {
             console.error('[api/bot/lead] GEIMSER_INGEST_API_KEY is not set');
@@ -19,7 +44,7 @@ export async function POST(req: NextRequest) {
         const { name, email, phone, message, meta } = body;
 
         // Validation
-        if (!name || (!email && !phone)) {
+        if (!name || !message || (!email && !phone)) {
             return NextResponse.json({ ok: false, error: 'Missing required fields' }, { status: 400 });
         }
 
@@ -62,13 +87,17 @@ export async function POST(req: NextRequest) {
                 if (res.ok) {
                     success = true;
                 } else {
-                    const errText = await res.text();
-                    lastError = `Geimser API error: ${res.status} ${errText}`;
+                    const errText = await res.text().catch(() => '');
+                    lastError = `Geimser API error: ${res.status} ${errText?.slice?.(0, 300) ?? ''}`;
                     console.warn(`[api/bot/lead] Attempt ${attempts} failed: ${lastError}`);
                 }
             } catch (err) {
-                lastError = err instanceof Error ? err.message : String(err);
-                console.warn(`[api/bot/lead] Attempt ${attempts} network error: ${lastError}`);
+                const details = toErrorDetails(err);
+                lastError = details.message;
+                console.warn(`[api/bot/lead] Attempt ${attempts} network error: ${details.message}`, {
+                    url: geimserUrl,
+                    cause: details.cause,
+                });
             }
         }
 
