@@ -41,10 +41,40 @@ export async function POST(req: NextRequest) {
         }
 
         const body = await req.json();
-        const { name, email, phone, message, meta } = body;
+        const name =
+            typeof body?.name === 'string'
+                ? body.name.trim()
+                : typeof body?.nombre === 'string'
+                    ? body.nombre.trim()
+                    : null;
+        const email =
+            typeof body?.email === 'string'
+                ? body.email.trim()
+                : typeof body?.correo === 'string'
+                    ? body.correo.trim()
+                    : null;
+        const phone =
+            typeof body?.phone === 'string'
+                ? body.phone.trim()
+                : typeof body?.telefono === 'string'
+                    ? body.telefono.trim()
+                    : null;
+        const message =
+            typeof body?.message === 'string'
+                ? body.message.trim()
+                : typeof body?.mensaje === 'string'
+                    ? body.mensaje.trim()
+                    : null;
+        const meta = body?.meta ?? null;
 
         // Validation
         if (!name || !message || (!email && !phone)) {
+            console.warn('[api/bot/lead] Bad payload', {
+                hasName: Boolean(name),
+                hasMessage: Boolean(message),
+                hasEmail: Boolean(email),
+                hasPhone: Boolean(phone),
+            });
             return NextResponse.json({ ok: false, error: 'Missing required fields' }, { status: 400 });
         }
 
@@ -55,7 +85,7 @@ export async function POST(req: NextRequest) {
             message, // Motive/Summary
             source: 'lawyer_site_bot',
             meta: {
-                ...meta,
+                ...(meta && typeof meta === 'object' ? meta : {}),
                 userAgent: req.headers.get('user-agent'),
                 timestamp: new Date().toISOString(),
             },
