@@ -5,43 +5,31 @@ import { useEffect, useRef, useState } from "react";
 import { MessageCircle, Send, X } from "lucide-react";
 import { sendBotMessage, saveConversationForReview } from "@/app/lib/chatAdapter";
 
-type Message = { role: "user" | "assistant"; content: string };
+type Message = {
+  role: "user" | "assistant";
+  content: string;
+  options?: string[]; // Opciones para chips clicables
+};
 
 /**
  * PROMPT COMERCIAL ROBUSTO
- * - No reinicia el saludo una vez comenzada la conversación
- * - 1 pregunta por turno, máximo 2 líneas
- * - Valida email/teléfono
- * - Cierra y emite <LEAD> cuando ya tiene nombre + contacto + motivo
- * - Acreedor, monto y comuna se compactan dentro de "motivo" (tu tabla sólo tiene 'motivo')
+ * (Este prompt se usa en el backend, pero mantenemos la referencia aquí si es necesario
+ * aunque la lógica principal se moverá al servidor).
  */
-const SYSTEM_PROMPT = `Eres "Asistente Legal", la IA oficial de Abogado Legal (Chile). Tu misión es CAPTURAR LEADS y derivarlos a nuestros abogados expertos.
+const SYSTEM_PROMPT = `Eres "Asistente Legal", la IA oficial de Abogado Legal (Chile).
+Tu objetivo es captar leads con un flujo GUIADO Y AMABLE.
 
-SLOTS OBLIGATORIOS (en este orden):
-1) nombre
-2) contacto (email válido O teléfono válido)
-3) motivo breve y útil (Ej: "Necesito divorcio", "Despido injustificado", "Defensa penal", "Herencia", etc.)
+ETAPAS OBLIGATORIAS (en orden):
+1. NOMBRE: Pide el nombre del usuario.
+2. SERVICIO: Ofrece opciones (Tu Quiebra, Familia, Civil, Laboral, Penal).
+3. CONTACTO: Pide email o teléfono para contactar en 24h hábiles.
+4. MENSAJE: Pregunta si quiere agregar algún detalle adicional o prefiere omitir.
+5. CIERRE: Confirma que un abogado lo contactará en 24 horas hábiles.
 
-REGLAS DURAS:
-- Presentación sólo en el primer turno. Nunca vuelvas a decir "Hola, soy el Asistente..." una vez iniciado.
-- UNA pregunta por turno. Mensajes breves (máx. 2 líneas).
-- Si un slot ya está en el historial, NO lo repitas: reconoce y avanza al siguiente.
-- Valida contacto:
-  • email: debe tener formato válido.
-  • teléfono: sólo dígitos (ignora espacios/guiones), 8–15 dígitos. Si es inválido, pide corrección o el otro canal.
-- No prometas plazos ni resultados específicos (ej: "ganaremos el juicio"), solo ofrece evaluación experta.
-- Nada de "tuve un problema técnico" salvo que el usuario lo exija.
-- Cuando tengas (nombre + contacto válido + motivo), CIERRA y EMITE EXACTAMENTE al FINAL:
-<LEAD>{"name":"NOMBRE","email":"EMAIL_o_null","phone":"PHONE_o_null","motivo":"MOTIVO"}</LEAD>
-
-TONO PROFESIONAL Y EMPÁTICO:
-- "Entiendo tu situación; es importante que un experto evalúe tu caso. ¿Me indicas tu email o teléfono para contactarte?"
-- Si falta motivo: "¿En qué área necesitas ayuda? (Familia, Laboral, Civil, Penal). Cuéntame brevemente."
-- Si contacto inválido: "Ese número no parece correcto. ¿Podrías revisarlo o darme tu correo?"
-
-IMPORTANTE:
-- No generes el bloque <LEAD> hasta tener los 3 slots.
-- Una vez emitas <LEAD>, no sigas preguntando; finaliza con el cierre comercial y despedida.`;
+REGLAS:
+- Sé breve y cordial.
+- Si el usuario selecciona una opción, reconócela y pasa a lo siguiente.
+- Al final, cuando tengas todos los datos, genera el bloque <LEAD>...`;
 
 const TypingIndicator = () => (
   <div className="flex justify-start">
@@ -59,8 +47,7 @@ export default function Chatbot() {
   const [msgs, setMsgs] = useState<Message[]>([
     {
       role: "assistant",
-      content:
-        "Hola, soy el Asistente Legal. ¿En qué materia jurídica necesitas apoyo hoy? (Familia, Laboral, Civil, Penal...)",
+      content: "¡Hola! Soy el Asistente Virtual de Abogado Legal. 👋\n\nPara poder ayudarte mejor, por favor indícame **¿cuál es tu nombre?**",
     },
   ]);
   const [unread, setUnread] = useState(0);
@@ -123,8 +110,8 @@ export default function Chatbot() {
     });
   }
 
-  async function send() {
-    const text = input.trim();
+  async function sendText(textOverride?: string) {
+    const text = (textOverride || input).trim();
     if (!text || isTyping) return;
 
     setInput("");
@@ -142,9 +129,6 @@ export default function Chatbot() {
 
       // Si viene leadData, lo enviamos a Geimser (server-to-server via /api/bot/lead)
       if (replyData.leadData) {
-        // Opcional: Mostrar "Enviando registro..." si se desea feedback visual inmediato
-        // Por ahora lo hacemos transparente y solo avisamos si falla o confirmamos éxito.
-
         try {
           const ingestRes = await fetch('/api/bot/lead', {
             method: 'POST',
@@ -154,15 +138,14 @@ export default function Chatbot() {
               meta: {
                 page: window.location.pathname,
                 title: document.title,
+                source: 'bot_guided'
               }
             }),
           });
 
           const ingestJson = await ingestRes.json();
-
           if (!ingestRes.ok || !ingestJson.ok) {
             console.error('Error enviando lead a Geimser:', ingestJson.error);
-            // Podríamos agregar un mensaje de error al chat si fuera crítico
           } else {
             console.log('✅ Lead enviado a Geimser correctamente');
           }
@@ -172,9 +155,19 @@ export default function Chatbot() {
       }
 
       setIsTyping(false);
-      setMsgs([...newHistory, { role: "assistant", content: reply || "" }]);
+      // Intentamos parsear opciones del texto de respuesta (formato custom o metadatos)
+      // Por ahora, asumiremos que el backend puede devolver 'options' en replyData si modificamos chatAdapter,
+      // O podemos inferirlas del texto si el backend usa un formato especial.
+      // Vamos a modificar chatAdapter para que traiga 'options'.
 
-      // Marcamos success si hubo leadData (asumimos que el intento de envío cuenta como "conversación útil")
+      const botMsg: Message = {
+        role: "assistant",
+        content: reply || "",
+        options: replyData.options // Asumimos que replyData traerá options
+      };
+
+      setMsgs([...newHistory, botMsg]);
+
       if (replyData.leadData && conversationId) {
         await saveConversationForReview(conversationId, "success");
       }
@@ -185,11 +178,14 @@ export default function Chatbot() {
         ...curr,
         {
           role: "assistant",
-          content:
-            "Disculpa, tuve un problema. ¿Puedes repetir tu último mensaje o compartir tu email/teléfono para ayudarte?",
+          content: "Disculpa, tuve un problema. ¿Podrías intentar nuevamente?",
         },
       ]);
     }
+  }
+
+  function send() {
+    sendText();
   }
 
   return (
@@ -265,6 +261,27 @@ export default function Chatbot() {
                 >
                   {m.content}
                 </div>
+                {/* Renderizar Opciones si existen */}
+                {m.role === "assistant" && m.options && m.options.length > 0 && (
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {m.options.map((opt, idx) => (
+                      <button
+                        key={idx}
+                        onClick={() => {
+                          if (isTyping) return;
+                          setInput(opt);
+                          // Hack: usamos setTimeout para asegurar que el estado input se actualice antes de enviar, 
+                          // o mejor llamamos a una versión de send que acepte argumento.
+                          // Pero como 'send' usa 'input' del state, mejor hacemos una función dedicada 'sendText(opt)'
+                          sendText(opt);
+                        }}
+                        className="rounded-full border border-legal-gold-500/50 bg-white px-3 py-1.5 text-xs font-medium text-legal-navy hover:bg-legal-gold-50 hover:text-legal-navy-dark transition-colors shadow-sm"
+                      >
+                        {opt}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             ))}
             {isTyping && <TypingIndicator />}

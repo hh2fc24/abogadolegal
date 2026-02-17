@@ -20,6 +20,7 @@ type BotResponse = {
     phone: string | null;
     message: string | null;
   } | null;
+  options?: string[];
 };
 
 const KEY = 'dc_conversation_id';
