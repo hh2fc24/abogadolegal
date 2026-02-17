@@ -29,15 +29,33 @@ function toErrorDetails(err: unknown): { message: string; cause?: any } {
     return { message: String(err) };
 }
 
+function normalizeApiKey(raw: string): { value: string; normalized: boolean } {
+    const trimmed = raw.trim();
+    if (trimmed.length >= 2) {
+        const first = trimmed[0];
+        const last = trimmed[trimmed.length - 1];
+        if ((first === '"' && last === '"') || (first === "'" && last === "'")) {
+            const v = trimmed.slice(1, -1).trim();
+            return { value: v, normalized: v !== raw };
+        }
+    }
+    return { value: trimmed, normalized: trimmed !== raw };
+}
+
 export async function POST(req: NextRequest) {
     try {
-        const apiKey = process.env.GEIMSER_INGEST_API_KEY;
+        const apiKeyRaw = process.env.GEIMSER_INGEST_API_KEY;
         const geimserUrl = resolveGeimserIngestUrl();
 
-        if (!apiKey) {
+        if (!apiKeyRaw) {
             console.error('[api/bot/lead] GEIMSER_INGEST_API_KEY is not set');
             // Return 200 to frontend to not break UX, but log error
             return NextResponse.json({ ok: false, error: 'Configuration error' }, { status: 500 });
+        }
+
+        const apiKeyNorm = normalizeApiKey(apiKeyRaw);
+        if (apiKeyNorm.normalized) {
+            console.warn('[api/bot/lead] Normalized GEIMSER_INGEST_API_KEY', { rawLen: apiKeyRaw.length, normalizedLen: apiKeyNorm.value.length });
         }
 
         const body = await req.json();
@@ -119,7 +137,7 @@ export async function POST(req: NextRequest) {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${apiKey}`,
+                        'Authorization': `Bearer ${apiKeyNorm.value}`,
                     },
                     body: JSON.stringify(payload),
                     signal: controller.signal,
