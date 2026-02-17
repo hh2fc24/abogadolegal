@@ -59,13 +59,25 @@ export async function POST(req: NextRequest) {
                 : typeof body?.telefono === 'string'
                     ? body.telefono.trim()
                     : null;
-        const message =
+        let message =
             typeof body?.message === 'string'
                 ? body.message.trim()
                 : typeof body?.mensaje === 'string'
                     ? body.mensaje.trim()
                     : null;
+        const motivo =
+            typeof body?.motivo === 'string'
+                ? body.motivo.trim()
+                : typeof body?.service === 'string'
+                    ? body.service.trim()
+                    : typeof body?.servicio === 'string'
+                        ? body.servicio.trim()
+                        : null;
         const meta = body?.meta ?? null;
+
+        if (!message) {
+            message = motivo ? `Solicitud desde bot • Motivo: ${motivo}` : 'Solicitud desde bot (sin detalle adicional)';
+        }
 
         // Validation
         if (!name || !message || (!email && !phone)) {
@@ -86,6 +98,7 @@ export async function POST(req: NextRequest) {
             source: 'lawyer_site_bot',
             meta: {
                 ...(meta && typeof meta === 'object' ? meta : {}),
+                motivo,
                 userAgent: req.headers.get('user-agent'),
                 timestamp: new Date().toISOString(),
             },
