@@ -42,8 +42,8 @@ const Hero = () => {
                 >
                     Nuestro equipo de abogados especialistas en quiebras está listo para brindarte asesoría legal experta.
                 </motion.p>
-                
-                 <motion.div
+
+                <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.6, delay: 0.7 }}
@@ -63,7 +63,7 @@ const Hero = () => {
                 >
                     <MagneticButton>
                         <Link
-                            href="https://wa.me/56912345678" // Replace with actual WhatsApp if available or keep generic
+                            href="https://wa.me/56227121162" // Replace with actual WhatsApp if available or keep generic
                             target="_blank"
                             className="px-10 py-4 bg-[#25D366] text-white font-bold text-sm tracking-widest uppercase hover:bg-white hover:text-[#25D366] transition-all duration-300 shadow-lg hover:shadow-xl inline-block"
                         >

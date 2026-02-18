@@ -26,7 +26,7 @@ const Contact = () => {
                                 <div className="w-10 h-10 bg-legal-50 rounded-full flex items-center justify-center text-legal-navy text-lg">📞</div>
                                 <div>
                                     <h4 className="font-bold text-legal-navy">Teléfono</h4>
-                                    <p className="text-gray-600">+56 93415 3944</p>
+                                    <p className="text-gray-600">+56 2 2712 1162</p>
                                 </div>
                             </div>
                             <div className="flex items-center gap-4">

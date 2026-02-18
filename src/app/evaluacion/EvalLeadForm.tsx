@@ -83,7 +83,7 @@ export default function EvalLeadForm() {
           Teléfono
           <input
             name="phone"
-            placeholder="+56 9 1234 5678"
+            placeholder="+56 2 2712 1162"
             className="mt-1 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-slate-900 outline-none focus:border-emerald-600"
           />
         </label>
