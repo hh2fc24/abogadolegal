@@ -268,7 +268,17 @@ export default function Chatbot() {
                     : "bg-white text-gray-800 border border-gray-100"
                     }`}
                 >
-                  {m.content}
+                  {/* Renderizar contenido con soporte básico de Markdown (negritas) */}
+                  {((text) => {
+                    // Función simple para parsear **negrita**
+                    const parts = text.split(/(\*\*.*?\*\*)/g);
+                    return parts.map((part, i) => {
+                      if (part.startsWith('**') && part.endsWith('**')) {
+                        return <strong key={i} className="font-semibold">{part.slice(2, -2)}</strong>;
+                      }
+                      return part;
+                    });
+                  })(m.content)}
                 </div>
                 {/* Renderizar Opciones si existen */}
                 {m.role === "assistant" && m.options && m.options.length > 0 && (
