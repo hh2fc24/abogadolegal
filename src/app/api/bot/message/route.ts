@@ -188,8 +188,9 @@ export async function POST(req: Request) {
       }
     }
 
-    // Si no hay pregunta previa, asumimos que es respuesta al saludo inicial (Nombre)
-    if (!lastBotQ) lastBotQ = "¿cuál es tu nombre?";
+    // Si no hay pregunta previa, asumimos que es respuesta al saludo inicial (Problema)
+    if (!lastBotQ) lastBotQ = "¿cuál es tu problema legal hoy?";
+
 
     // 3. Lógica de Transición (State Machine)
     let reply = "";
@@ -199,81 +200,94 @@ export async function POST(req: Request) {
 
     const cleanQ = lastBotQ.toLowerCase();
 
+    // -- STATE: WAITING_PROBLEM (Respuesta al saludo inicial "¿cuál es tu problema?")
+    // El frontend ahora inicia con "Cuéntame, ¿cuál es tu problema legal hoy?" y opciones.
+    if (cleanQ.includes("problema") || cleanQ.includes("ayudarte") || cleanQ.includes("necesitas")) {
+      // Guardamos el problema/servicio seleccionado
+      // Solicitamos NOMBRE
+      reply = "Entendido. Para derivarte con el especialista adecuado, por favor indícame tu **Nombre**.";
+    }
     // -- STATE: WAITING_NAME (Respuesta a "¿cuál es tu nombre?")
-    if (cleanQ.includes("nombre")) {
-      // Validamos nombre (básico)
+    else if (cleanQ.includes("nombre")) {
+      // Validamos nombre
       if (userText.length < 2) {
         reply = "Por favor, indícame un nombre válido para poder dirigirme a ti.";
       } else {
-        reply = `Un gusto, ${userText}. Para continuar, selecciona qué tipo de servicio necesitas:`;
-        options = ["Tu Quiebra", "Familia", "Civil", "Laboral", "Penal"];
+        reply = `Gracias, ${userText}. Para que un abogado te contacte, por favor indícame tu **Teléfono** o **Email** (ej: 912345678).`;
       }
     }
-    // -- STATE: WAITING_SERVICE (Respuesta a servicio)
-    else if (cleanQ.includes("servicio") || cleanQ.includes("materia") || options.includes("Tu Quiebra")) { // check context
-      // Guardamos servicio. Pedimos contacto.
-      reply = "¿A qué email o teléfono te podemos contactar? (Esto es para asegurarnos de darte respuesta en 24h)";
-    }
     // -- STATE: WAITING_CONTACT (Respuesta a contacto)
-    else if (cleanQ.includes("contactar") || cleanQ.includes("email") || cleanQ.includes("teléfono")) {
+    else if (cleanQ.includes("teléfono") || cleanQ.includes("email") || cleanQ.includes("contactarte")) {
       // Validar contacto
       const isEmail = normEmail(userText);
       const isPhone = normPhone(userText);
 
-      if (!isEmail && !isPhone) {
-        reply = "Ese contacto no parece válido. Por favor ingresa un email (ej: nombre@gmail.com) o un teléfono (ej: 912345678).";
+      // if (!isEmail && !isPhone) {
+      //   // Permitimos avanzar si parece un intento, o pedimos confirmar. 
+      //   // Para ser "amable", si no es válido, insistimos suavemente una vez o aceptamos texto libre si es muy largo?
+      //   // Mejor validación simple.
+      //   reply = "Ese contacto no parece válido. Por favor ingresa un email (ej: nombre@gmail.com) o un teléfono (ej: 912345678).";
+      // } else {
+      //   reply = "Perfecto. Si deseas, puedes contarme más detalles de tu caso, o presionar 'Omitir' para finalizar.";
+      //   options = ["Omitir"];
+      // }
+      // Validacion laxa para no trabar
+      if (!isEmail && !isPhone && userText.length < 5) {
+        reply = "Por favor ingresa un número de teléfono o email válido para poder contactarte.";
       } else {
-        reply = "Perfecto. ¿Quieres agregar algún detalle sobre tu caso? O puedes presionar 'Omitir'.";
+        reply = "Perfecto. ¿Quieres agregar algún detalle sobre tu caso (ej: monto de la deuda, hace cuánto fue el despido, etc)? O puedes presionar 'Omitir'.";
         options = ["Omitir"];
       }
     }
     // -- STATE: WAITING_MESSAGE (Respuesta a detalle)
     else if (cleanQ.includes("detalle") || cleanQ.includes("omitir")) {
       // Ya tenemos todo. Generamos LEAD.
-      reply = "¡Listo! Hemos recibido tu solicitud. Un abogado especialista revisará tu caso y te contactará dentro de las próximas 24 horas hábiles. ¡Gracias por confiar en nosotros!";
+      reply = "¡Listo! Hemos recibido tu solicitud. Un abogado experto revisará tu caso y te contactará a la brevedad. ¡Gracias por confiar en Abogado Legal!";
 
-      // RECOLECTAR DATOS DE TODO EL HISTORIAL PARA EL LEAD
-      // Buscamos hacia atrás las respuestas
-      // 1. Msg (UserText actual) -> Message
-      const finalMsg = userText.toLowerCase() === 'omitir' ? '' : userText;
-
-      // 2. Contacto (Penúltimo user msg)
-      // 3. Servicio (Antepenúltimo user msg)
-      // 4. Nombre (Tras-antepenúltimo user msg)
-
-      // Estrategia más robusta: Buscar respuestas a las preguntas específicas en el history
-      const getAnswerTo = (keyword: string) => {
+      // RECOLECTAR DATOS DE TODO EL HISTORIAL
+      const getAnswerTo = (keywords: string[]) => {
+        // Buscamos el mensaje del usuario INMEDIATAMENTE DESPUÉS de una pregunta del bot con keywords
         for (let i = 0; i < currentHistory.length - 1; i++) {
-          if (currentHistory[i].role === 'assistant' && currentHistory[i].content.toLowerCase().includes(keyword)) {
-            return currentHistory[i + 1]?.role === 'user' ? currentHistory[i + 1].content : null;
+          if (currentHistory[i].role === 'assistant') {
+            const q = currentHistory[i].content.toLowerCase();
+            if (keywords.some(k => q.includes(k))) {
+              return currentHistory[i + 1]?.role === 'user' ? currentHistory[i + 1].content : null;
+            }
           }
         }
         return null;
       };
 
-      const name = getAnswerTo("nombre") || "Desconocido";
-      const service = getAnswerTo("servicio") || getAnswerTo("materia") || "General";
-      const contactRaw = getAnswerTo("contactar") || getAnswerTo("email") || "";
+      // 1. Problema (respuesta a "problema", "necesitas", etc) - Suele ser el primer mensaje del user
+      const motivo = getAnswerTo(["problema", "ayudarte", "necesitas"]) || "Consulta General";
 
+      // 2. Nombre (respuesta a "nombre")
+      const name = getAnswerTo(["nombre"]) || "Usuario";
+
+      // 3. Contacto (respuesta a "teléfono", "email")
+      const contactRaw = getAnswerTo(["teléfono", "email", "contactarte"]) || "";
       const email = normEmail(contactRaw);
       const phone = normPhone(contactRaw);
+
+      // 4. Detalle (mensaje actual)
+      const finalMsg = userText.toLowerCase() === 'omitir' ? '' : userText;
 
       leadData = {
         name,
         email,
         phone,
-        motivo: service,
+        motivo,
         message: finalMsg,
-        // Acreedor/Monto/Comuna no se piden en este flujo simplificado, se asumen nulos o en "message"
+        fuente: 'Chatbot' // metadata extra
       };
 
-      // Generar <LEAD> block para consistencia (opcional, ya mandamos leadData directo)
-      reply += `\n<LEAD>${JSON.stringify(leadData)}</LEAD>`;
+      // Enviamos el leadData en la respuesta JSON para que el frontend lo procese o lo enviamos directo a la API de leads aquí si quisiéramos.
+      // El frontend hace el POST a /api/bot/lead, así que devolvemos leadData.
     }
     // -- STATE: COMPLETED
     else {
       // Si sigue hablando después del cierre
-      reply = "Ya tenemos tus datos. Si necesitas algo urgente, puedes escribirnos por WhatsApp directamente en el botón de la web.";
+      reply = "Tus datos ya fueron recibidos. Un especialista te contactará pronto.";
     }
 
     // 4. Guardar y Responder

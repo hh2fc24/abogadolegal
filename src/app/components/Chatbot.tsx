@@ -47,7 +47,16 @@ export default function Chatbot() {
   const [msgs, setMsgs] = useState<Message[]>([
     {
       role: "assistant",
-      content: "¡Hola! Soy el Asistente Virtual de Abogado Legal. 👋\n\nPara poder ayudarte mejor, por favor indícame **¿cuál es tu nombre?**",
+      content: "¡Hola! Soy el Asistente Legal. 👋\n\nCuéntame, **¿cuál es tu problema legal hoy?** Selecciona una opción:",
+      options: [
+        "Borrar Deuda / Embargos",
+        "Tramitar Divorcio",
+        "Pensión de Alimentos",
+        "Despido Injustificado",
+        "Herencias / Posesión",
+        "Arriendo / Desalojo",
+        "Delito / Penal"
+      ]
     },
   ]);
   const [unread, setUnread] = useState(0);
