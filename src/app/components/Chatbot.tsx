@@ -55,7 +55,8 @@ export default function Chatbot() {
         "Despido Injustificado",
         "Herencias / Posesión",
         "Arriendo / Desalojo",
-        "Delito / Penal"
+        "Delito / Penal",
+        "Asociaciones Gremiales"
       ]
     },
   ]);
@@ -233,21 +234,29 @@ export default function Chatbot() {
 
       {/* Ventana */}
       {open && (
-        <div className="fixed bottom-20 right-5 z-[70] flex h-[min(640px,calc(100vh-120px))] w-[min(420px,calc(100vw-40px))] flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white text-gray-900 shadow-[0_16px_60px_rgba(12,24,52,0.25)] animate-fade-in-up sm:h-[min(680px,calc(100vh-120px))] sm:w-[420px] max-sm:fixed max-sm:inset-0 max-sm:rounded-none max-sm:border-0">
+        <div className="fixed bottom-20 right-5 z-[70] flex h-[min(640px,calc(100vh-120px))] w-[min(420px,calc(100vw-40px))] flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white text-gray-900 shadow-[0_16px_60px_rgba(12,24,52,0.25)] animate-fade-in-up sm:h-[min(680px,calc(100vh-120px))] sm:w-[420px] max-sm:fixed max-sm:inset-0 max-sm:rounded-none max-sm:border-0 font-sans">
           {/* Header */}
-          <header className="flex flex-shrink-0 items-center justify-between border-b border-gray-100 bg-legal-navy px-4 py-4 text-white">
-            <div className="flex items-center gap-3">
-              <div className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-legal-gold-500 shadow-sm ring-1 ring-white/20">
-                <MessageCircle size={20} />
+          <header className="flex flex-shrink-0 items-center justify-between border-b border-gray-100 bg-legal-navy px-5 py-4 text-white shadow-sm relative overflow-hidden">
+            {/* Background texture hint */}
+            <div className="absolute inset-0 bg-gradient-to-br from-legal-navy to-[#1e2a4a] opacity-100" />
+
+            <div className="flex items-center gap-3 relative z-10">
+              <div className="relative">
+                <div className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-white/10 text-legal-gold-500 shadow-sm ring-1 ring-white/20 backdrop-blur-sm">
+                  <MessageCircle size={22} />
+                </div>
+                <div className="absolute bottom-0 right-0 h-3 w-3 rounded-full bg-green-500 border-2 border-legal-navy" />
               </div>
               <div className="leading-tight">
-                <div className="text-sm font-bold">Asistente Legal</div>
-                <div className="text-[11px] text-gray-300">Abogado Legal Chile</div>
+                <div className="text-[15px] font-bold tracking-wide">Asistente Legal</div>
+                <div className="text-xs text-green-400 font-medium flex items-center gap-1">
+                  En línea <span className="animate-pulse">●</span>
+                </div>
               </div>
             </div>
             <button
               onClick={() => setOpen(false)}
-              className="rounded-md p-1 text-gray-300 hover:bg-white/10 hover:text-white transition-colors"
+              className="relative z-10 rounded-full p-2 text-gray-300 hover:bg-white/10 hover:text-white transition-colors"
               aria-label="Cerrar chat"
             >
               <X size={20} />
@@ -255,7 +264,7 @@ export default function Chatbot() {
           </header>
 
           {/* Conversación */}
-          <div className="flex-1 space-y-3 overflow-y-auto px-4 py-3 bg-gray-50/50">
+          <div className="flex-1 space-y-4 overflow-y-auto px-5 py-4 bg-[#F8F9FA]">
             {msgs.map((m, i) => (
               <div
                 key={i}
@@ -263,9 +272,9 @@ export default function Chatbot() {
                 aria-live="polite"
               >
                 <div
-                  className={`max-w-[85%] whitespace-pre-wrap rounded-2xl px-4 py-3 text-sm shadow-sm ${m.role === "user"
-                    ? "bg-legal-navy text-white"
-                    : "bg-white text-gray-800 border border-gray-100"
+                  className={`max-w-[85%] whitespace-pre-wrap rounded-2xl px-5 py-3.5 text-[15px] leading-relaxed shadow-sm transition-all ${m.role === "user"
+                    ? "bg-legal-navy text-white rounded-br-none"
+                    : "bg-white text-gray-800 border border-gray-200/60 rounded-bl-none"
                     }`}
                 >
                   {/* Renderizar contenido con soporte básico de Markdown (negritas) */}
@@ -274,7 +283,7 @@ export default function Chatbot() {
                     const parts = text.split(/(\*\*.*?\*\*)/g);
                     return parts.map((part, i) => {
                       if (part.startsWith('**') && part.endsWith('**')) {
-                        return <strong key={i} className="font-semibold">{part.slice(2, -2)}</strong>;
+                        return <strong key={i} className="font-semibold text-inherit">{part.slice(2, -2)}</strong>;
                       }
                       return part;
                     });
@@ -282,19 +291,16 @@ export default function Chatbot() {
                 </div>
                 {/* Renderizar Opciones si existen */}
                 {m.role === "assistant" && m.options && m.options.length > 0 && (
-                  <div className="mt-2 flex flex-wrap gap-2">
+                  <div className="mt-3 flex flex-wrap gap-2 animate-fade-in-up">
                     {m.options.map((opt, idx) => (
                       <button
                         key={idx}
                         onClick={() => {
                           if (isTyping) return;
                           setInput(opt);
-                          // Hack: usamos setTimeout para asegurar que el estado input se actualice antes de enviar, 
-                          // o mejor llamamos a una versión de send que acepte argumento.
-                          // Pero como 'send' usa 'input' del state, mejor hacemos una función dedicada 'sendText(opt)'
                           sendText(opt);
                         }}
-                        className="rounded-full border border-legal-gold-500/50 bg-white px-3 py-1.5 text-xs font-medium text-legal-navy hover:bg-legal-gold-50 hover:text-legal-navy-dark transition-colors shadow-sm"
+                        className="rounded-full border border-legal-navy/10 bg-white px-4 py-2 text-[13px] font-medium text-legal-navy hover:bg-legal-gold-50 hover:border-legal-gold-300 hover:text-legal-navy transition-all shadow-sm active:scale-95"
                       >
                         {opt}
                       </button>
@@ -308,24 +314,27 @@ export default function Chatbot() {
           </div>
 
           {/* Input */}
-          <footer className="flex-shrink-0 border-t border-gray-100 bg-white p-3">
-            <div className="flex items-center gap-2">
+          <footer className="flex-shrink-0 border-t border-gray-100 bg-white p-4">
+            <div className="flex items-center gap-2 bg-gray-50 rounded-full px-2 py-1 border border-gray-200 focus-within:border-legal-navy/30 focus-within:bg-white focus-within:ring-2 focus-within:ring-legal-navy/10 transition-all shadow-sm">
               <input
                 ref={inputRef}
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && send()}
-                placeholder="Describe tu caso aquí..."
-                className="flex-1 rounded-full border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 outline-none transition-all focus:border-legal-navy focus:bg-white focus:ring-1 focus:ring-legal-navy/20"
+                placeholder="Escribe aquí tu respuesta..."
+                className="flex-1 bg-transparent px-3 py-2.5 text-[15px] text-gray-900 placeholder:text-gray-400 outline-none"
                 aria-label="Mensaje para el Asistente"
               />
               <button
                 onClick={send}
                 disabled={isTyping || !input.trim()}
-                className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-legal-gold-500 text-legal-navy shadow-sm transition-transform hover:scale-105 hover:bg-legal-gold-400 disabled:opacity-50 disabled:hover:scale-100"
+                className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-legal-navy text-white shadow-md transition-all hover:bg-[#1e2a4a] hover:scale-105 disabled:opacity-50 disabled:hover:scale-100 disabled:hover:bg-legal-navy"
               >
-                <Send size={18} />
+                <Send size={16} className="ml-0.5" />
               </button>
+            </div>
+            <div className="mt-2 text-center">
+              <span className="text-[10px] text-gray-400">Protegemos tus datos con cifrado SSL</span>
             </div>
           </footer>
         </div>
